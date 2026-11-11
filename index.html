@@ -1527,6 +1527,60 @@
     cursor: pointer;
   }
 
+  /* Productos sin stock */
+  .brand-card .img-slot { position: relative; }
+  .brand-card.agotado { background: rgba(0,0,0,.03); }
+  .brand-card.agotado .img-slot img,
+  .brand-card.agotado .img-slot svg { filter: grayscale(1); opacity: .38; }
+  .brand-card.agotado .info { opacity: .5; }
+  #pvImgSlot.agotado img,
+  #pvImgSlot.agotado svg { filter: grayscale(1); opacity: .4; }
+  .stock-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #2b2b2b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+  .brand-card.agotado .price-cash-box { background: rgba(0,0,0,.06); }
+  .brand-card.agotado .price-cash-label,
+  .brand-card.agotado .price-cuota { color: var(--muted); }
+  .pv-sin-stock {
+    display: inline-block;
+    margin-bottom: 8px;
+    background: #2b2b2b;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+  .pv-cta:disabled {
+    background: #9a9a9a;
+    border-color: #9a9a9a;
+    color: #fff;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  .search-result-price .sr-out {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #b3261e;
+    text-align: right;
+    text-transform: uppercase;
+  }
+
   .pv-cta:hover {
     transform: translateY(-1px);
     box-shadow: 0 6px 16px rgba(168,130,63,.35);
@@ -1799,8 +1853,8 @@
   <div class="brand-grid bv-grid" id="bvGrid"></div>
 </div><!-- /brandView -->
 
-<script src="catalogo-01.js?v=20261101-4"></script>
-<script src="catalogo-02.js?v=20261101-4"></script>
+<script src="catalogo-01.js?v=20261101-6"></script>
+<script src="catalogo-02.js?v=20261101-6"></script>
 <script>
   /* =========================================================================
      GUÍA RÁPIDA — Marcas Populares y secciones por marca
@@ -1826,7 +1880,7 @@
      catálogo ahora. */
   const SECTION_BRAND_NAMES = [
     "Afnan", "Al Haramain", "Al Wataniah", "Armaf", "Bharara", "Dumont",
-    "Emper", "French Avenue", "Jo Milano", "Khadlaj",
+    "French Avenue", "Jo Milano", "Khadlaj",
     "L Affair", "Lattafa", "Maison Alhambra",
     "Orientica", "Rasasi", "Rayhaan"
   ];
@@ -2114,6 +2168,9 @@
   function buildBrandProducts(brandName) {
     const items = CATALOG_DATA[brandName] || [];
     const sorted = [...items].sort((a, b) => {
+      const aOut = a.sinStock ? 1 : 0;
+      const bOut = b.sinStock ? 1 : 0;
+      if (aOut !== bOut) return aOut - bOut;
       const aMini = a.ml === 30 ? 1 : 0;
       const bMini = b.ml === 30 ? 1 : 0;
       if (aMini !== bMini) return aMini - bMini;
@@ -2125,6 +2182,7 @@
       priceCard: pesoPrice(p.priceCard),
       cuota: pesoPrice(p.cuota),
       ml: p.ml,
+      sinStock: !!p.sinStock,
       img: p.img || null,
       accords: p.accords || null,
       notes: p.notes || null,
@@ -2185,8 +2243,8 @@
       : BOTTLE_ICON;
     const slotClass = p.img ? "img-slot has-photo" : "img-slot";
     return `
-      <a class="brand-card" href="#producto/${p.slug}">
-        <div class="${slotClass}">${thumb}</div>
+      <a class="brand-card${p.sinStock ? " agotado" : ""}" href="#producto/${p.slug}">
+        <div class="${slotClass}">${thumb}${p.sinStock ? '<span class="stock-badge">Sin stock</span>' : ""}</div>
         <div class="info">
           <div class="name">${p.name}</div>
           ${priceBlockHTML(p)}
@@ -2309,7 +2367,7 @@
     pvNote.style.display = product.img ? "none" : "";
     pvBrand.textContent = product.brand;
     pvTitle.textContent = product.name;
-    pvPrice.innerHTML = priceBlockHTML(product);
+    pvPrice.innerHTML = (product.sinStock ? '<div class="pv-sin-stock">SIN STOCK por el momento</div>' : "") + priceBlockHTML(product);
     // Si el perfume no tenía ML declarado en la planilla, se asume 100ML.
     const ml = product.ml || 100;
     pvDescription.textContent = `Contenido: ${ml}ML.`;
@@ -2328,6 +2386,13 @@
 
     pvQtyValue = 1;
     pvQty.textContent = "1";
+    // Sin stock: el botón queda deshabilitado y no se puede agregar al carrito.
+    const sinStock = !!product.sinStock;
+    const pvCtaEl = document.getElementById("pvCta");
+    pvCtaEl.disabled = sinStock;
+    pvImgSlot.classList.toggle("agotado", sinStock);
+    pvCtaEl.textContent = sinStock ? "Sin stock" : "Agregar al carrito";
+    document.querySelector(".pv-qty-row .qty-stepper").style.display = sinStock ? "none" : "";
     hideAllViews();
     productView.style.display = "block";
     window.scrollTo(0, 0);
@@ -2414,7 +2479,7 @@
           <div class="search-result-name">${p.name}</div>
           <div class="search-result-brand">${p.brand}</div>
         </div>
-        <div class="search-result-price">${p.price}<span class="sr-cash">Tarjeta ${p.priceCard}</span></div>
+        <div class="search-result-price">${p.price}<span class="sr-cash">Tarjeta ${p.priceCard}</span>${p.sinStock ? '<span class="sr-out">Sin stock</span>' : ""}</div>
       </a>
     `;
   }
@@ -2587,7 +2652,7 @@
 
   function addToCart(slug, qty) {
     const product = PRODUCTS_BY_SLUG[slug];
-    if (!product) return;
+    if (!product || product.sinStock) return;
     const existing = cart.find(it => it.slug === slug);
     if (existing) {
       existing.qty += qty;
